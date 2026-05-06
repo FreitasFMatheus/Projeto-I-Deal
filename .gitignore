@@ -1,0 +1,25 @@
+# =============================================================================
+# .gitignore — Projeto I-Deal (raiz)
+# =============================================================================
+
+# --- Backups do projeto (cópias completas para reverter estado) ---
+I-Deal_Atualizado_3.0_plano_*/
+I-Deal_Atualizado_3.0_backup_*/
+I-Deal_Atualizado_3.0.bak/
+
+# --- Caches gerais ---
+__pycache__/
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*~
+
+# --- IDE ---
+.idea/
+.vscode/*.local
+
+# --- Notas pessoais (não compartilhar) ---
+NOTAS_PESSOAIS.md
+NOTAS_*.md
+TODO_PESSOAL.md

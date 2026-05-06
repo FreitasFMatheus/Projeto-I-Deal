@@ -1,0 +1,252 @@
+{# ==========================================================================
+   game_detail.html — Página de detalhes de um jogo específico
+   ==========================================================================
+   Tarefa 2.3.1 (MF): Gerar Link para ir até o Site do jogo
+   US02 (Sprint 2): Histórico de preços visual (gráfico interativo)
+
+   Esta página exibe:
+     - Capa e informações do jogo
+     - Lista de preços por loja, ordenados do menor para o maior
+     - Botão "Comprar" em cada loja que redireciona via /redirect/<link_id>
+       (passando pela rota que registra a navegação — tarefa 2.3.2)
+     - Gráfico interativo do histórico de preços (Chart.js — US02 Sprint 2)
+     - Tabela detalhada com histórico cronológico
+   ========================================================================== #}
+
+{% extends 'base.html' %}
+
+{% block title %}I-Deal - {{ game.title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    {# --- Seção principal: capa do jogo + informações --- #}
+    <div class="game-detail-header">
+        <img src="{{ game.image_url }}" alt="{{ game.title }}" class="game-detail-img">
+        <div class="game-detail-info">
+            <h1 class="header-title">{{ game.title }}</h1>
+            <p class="header-subtitle">Compare os preços em diferentes lojas e encontre a melhor oferta.</p>
+
+            {# Mostra o menor preço encontrado, se houver ofertas #}
+            {% if offers %}
+            <div class="best-price-badge">
+                <span class="best-price-label">Melhor preço:</span>
+                <span class="best-price-value">R$ {{ "%.2f"|format(offers[0].price)|replace('.', ',') }}</span>
+                <span class="best-price-store">na {{ offers[0].store }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# --- Seção de ofertas por loja (2.3.1 — links para as lojas) --- #}
+    <h2 style="margin: 3rem 0 1.5rem; font-weight: 600;">Preços por Loja</h2>
+
+    {# --- Disclaimer de conversão USD → BRL --- #}
+    <div class="currency-disclaimer">
+        <span class="currency-disclaimer-icon">💱</span>
+        <span class="currency-disclaimer-text">
+            Preços de algumas lojas (Humble Store, Fanatical) podem ser
+            <strong>convertidos do dólar</strong> a uma taxa fixa de
+            <strong>R$ 5,50 por USD</strong>. Valores reais podem variar
+            conforme a cotação do dia.
+        </span>
+    </div>
+
+    {% if offers %}
+    <div class="offers-list">
+        {% for offer in offers %}
+        <div class="offer-card">
+            <div class="offer-info">
+                {# Nome da loja #}
+                <h3 class="offer-store">{{ offer.store }}</h3>
+                {# Data da última atualização do preço #}
+                <span class="offer-date">Atualizado em {{ offer.date }}</span>
+            </div>
+            <div class="offer-price-section">
+                {# Preço atual na loja #}
+                <span class="offer-price">R$ {{ "%.2f"|format(offer.price)|replace('.', ',') }}</span>
+
+                {# Botão que redireciona para a loja via /redirect/<link_id>
+                   A rota /redirect registra a navegação (2.3.2) antes de redirecionar.
+                   Se não houver link cadastrado, mostra botão desabilitado. #}
+                {% if offer.link_id %}
+                <a href="{{ url_for('redirect_to_store', link_id=offer.link_id) }}"
+                   class="btn btn-primary offer-btn"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    Comprar
+                </a>
+                {% else %}
+                <span class="btn btn-outline offer-btn" style="opacity: 0.5; cursor: not-allowed;">
+                    Indisponível
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="color: #aaa;">Nenhum preço cadastrado para este jogo ainda.</p>
+    {% endif %}
+
+    {# --- Seção de histórico de preços --- #}
+    {% if price_history %}
+    <h2 style="margin: 3rem 0 1.5rem; font-weight: 600;">Histórico de Preços</h2>
+
+    {# --- Gráfico interativo (NOVO — US02 Sprint 2) --- #}
+    <div class="price-history-chart-wrapper">
+        <div class="price-history-chart-header">
+            <span class="price-history-chart-title">Evolução dos preços por loja</span>
+            <span class="price-history-chart-hint">Passe o mouse sobre os pontos para ver detalhes</span>
+        </div>
+        <div class="price-history-chart-canvas-wrapper">
+            <canvas id="priceHistoryChart"></canvas>
+        </div>
+    </div>
+
+    {# --- Tabela detalhada (mantida — fonte de verdade) --- #}
+    <h3 style="margin: 2.5rem 0 1rem; font-weight: 600; color: #ccc; font-size: 1.15rem;">Tabela detalhada</h3>
+    <div class="price-history-table-wrapper">
+        <table class="price-history-table">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Loja</th>
+                    <th>Preço</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in price_history %}
+                <tr>
+                    <td>{{ entry.date }}</td>
+                    <td>{{ entry.store }}</td>
+                    <td class="price-cell">R$ {{ "%.2f"|format(entry.price)|replace('.', ',') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {# --- Chart.js + script de renderização (carregado só se houver histórico) --- #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            // Dados serializados do backend (price_history em ordem cronológica)
+            const rawHistory = {{ price_history|tojson }};
+            if (!rawHistory || rawHistory.length === 0) return;
+
+            // Paleta alinhada à identidade visual (roxo/verde + complementares)
+            const STORE_COLORS = {
+                'Steam':        '#6366f1',
+                'Epic Games':   '#10b981',
+                'GOG':          '#f59e0b',
+                'Nuuvem':       '#06b6d4',
+                'Humble Store': '#ec4899',
+                'Fanatical':    '#8b5cf6'
+            };
+            const FALLBACK_PALETTE = ['#6366f1','#10b981','#f59e0b','#06b6d4','#ec4899','#8b5cf6','#3b82f6','#f97316'];
+
+            // Coleta datas únicas (preserva a ordem cronológica do backend)
+            const dateSet = [];
+            const dateSeen = new Set();
+            rawHistory.forEach(function (e) {
+                if (!dateSeen.has(e.date)) { dateSeen.add(e.date); dateSet.push(e.date); }
+            });
+
+            // Agrupa preços por loja, indexados pela posição da data
+            const byStore = {};
+            rawHistory.forEach(function (e) {
+                if (!byStore[e.store]) byStore[e.store] = new Array(dateSet.length).fill(null);
+                byStore[e.store][dateSet.indexOf(e.date)] = e.price;
+            });
+
+            // Monta os datasets para o Chart.js (uma linha por loja)
+            const datasets = Object.keys(byStore).map(function (store, i) {
+                const color = STORE_COLORS[store] || FALLBACK_PALETTE[i % FALLBACK_PALETTE.length];
+                return {
+                    label: store,
+                    data: byStore[store],
+                    borderColor: color,
+                    backgroundColor: color + '33',
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#0d0f1a',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.25,
+                    spanGaps: true,
+                    borderWidth: 2.5
+                };
+            });
+
+            const ctx = document.getElementById('priceHistoryChart');
+            if (!ctx || typeof Chart === 'undefined') return;
+
+            new Chart(ctx, {
+                type: 'line',
+                data: { labels: dateSet, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: '#ccc',
+                                font: { family: 'Outfit', size: 13, weight: '600' },
+                                usePointStyle: true,
+                                padding: 16
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(13, 15, 26, 0.95)',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            titleColor: '#fff',
+                            titleFont: { family: 'Outfit', weight: '600', size: 13 },
+                            bodyColor: '#ccc',
+                            bodyFont: { family: 'Outfit', size: 12 },
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function (c) {
+                                    if (c.parsed.y === null) return null;
+                                    return c.dataset.label + ': R$ ' + c.parsed.y.toFixed(2).replace('.', ',');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid:  { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#aaa', font: { family: 'Outfit', size: 11 } }
+                        },
+                        y: {
+                            grid:  { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: {
+                                color: '#aaa',
+                                font: { family: 'Outfit', size: 11 },
+                                callback: function (v) {
+                                    return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })();
+    </script>
+    {% endif %}
+
+    {# --- Atalhos de navegação --- #}
+    <div style="margin-top: 2rem; display: flex; gap: 0.8rem; flex-wrap: wrap;">
+        <a href="{{ url_for('index') }}" class="btn btn-outline">
+            ← Voltar ao Catálogo
+        </a>
+        <a href="{{ url_for('alerts_list', prefill_game_id=game.id) }}#alertForm" class="btn btn-outline">
+            🔔 Criar alerta de preço pra este jogo
+        </a>
+    </div>
+</div>
+{% endblock %}

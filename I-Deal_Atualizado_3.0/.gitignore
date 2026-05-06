@@ -1,0 +1,77 @@
+# =============================================================================
+# .gitignore — I-Deal
+# =============================================================================
+
+# --- Ambientes virtuais ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Bytecode / cache Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# --- Distribuição / build ---
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Variáveis de ambiente (NUNCA commitar — contém senhas/chaves) ---
+.env
+.env.local
+.env.*.local
+.env.backup-*
+
+# --- Banco de dados local (DEVE ser recriado pelo seed) ---
+ideal.db
+*.sqlite
+*.sqlite3
+*.db
+
+# --- Backups do banco e do .env ---
+*.backup
+*.backup-*
+ideal.db.backup-*
+
+# --- Arquivos temporários de edição ---
+*.tmp
+*.new
+*.bak
+*~
+
+# --- Logs ---
+*.log
+logs/
+
+# --- IDE / Editor ---
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- VS Code: mantém configurações compartilhadas, ignora locais ---
+.vscode/*.local
+.vscode/.ropeproject
+.vscode/launch.json.user
+
+# --- Cobertura de testes ---
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+
+# --- Flask ---
+instance/
+.webassets-cache
+
+# --- Notas pessoais (não compartilhar) ---
+NOTAS_PESSOAIS.md
+NOTAS_*.md
+TODO_PESSOAL.md
+SETUP_LOCAL.md

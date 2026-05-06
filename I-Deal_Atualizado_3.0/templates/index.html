@@ -1,0 +1,70 @@
+{# ==========================================================================
+   index.html — Página inicial do I-Deal
+   ==========================================================================
+   Tarefa 1.4 (GC): Personalização do Site baseada nos dados do Banco
+   ========================================================================== #}
+
+{% extends 'base.html' %}
+
+{% block title %}I-Deal - Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    {% if user %}
+    <h1 class="header-title">Olá novamente! Temos novos preços para você.</h1>
+    <p class="header-subtitle">Descubra as melhores ofertas e acompanhe as variações no histórico dos seus jogos favoritos.</p>
+    {% else %}
+    <h1 class="header-title">Encontre os melhores preços de jogos!</h1>
+    <p class="header-subtitle">A central definitiva para gamers. Crie alertas e acesse o histórico das maiores promoções da internet.</p>
+    {% endif %}
+
+    {# --- Barra de busca rápida --- #}
+    <form action="{{ url_for('search') }}" method="GET" class="search-bar">
+        <input type="text" name="q" placeholder="Buscar jogo no catálogo ou na Steam ao vivo..." class="search-input">
+        <button type="submit" class="btn btn-primary search-submit">🔍 Buscar</button>
+    </form>
+
+    <h2 style="margin-bottom: 2rem; font-weight: 600;">Catálogo de Jogos</h2>
+    <div class="games-grid">
+        {% for item in games %}
+        <a href="{{ url_for('game_detail', game_id=item.game.id) }}" class="game-card-link">
+            <div class="game-card">
+                <img src="{{ item.game.image_url }}" alt="{{ item.game.title }}" class="game-img">
+                <div class="game-info">
+                    <h3 class="game-title">{{ item.game.title }}</h3>
+                    {% if item.has_price %}
+                    <div class="game-price">A partir de R$ {{ "%.2f"|format(item.min_price)|replace('.', ',') }}</div>
+                    <div class="game-stores">{{ item.store_count }} loja{{ 's' if item.store_count > 1 else '' }}</div>
+                    {% else %}
+                    <div class="game-price game-price-unavailable">Sem oferta no momento</div>
+                    <div class="game-stores">Aguardando preços</div>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+
+        {% if not games %}
+        <p>Nenhum jogo cadastrado no banco ainda.</p>
+        {% endif %}
+    </div>
+
+    {# --- CTA: Solicitar acompanhamento de jogo não cadastrado --- #}
+    <div class="request-cta-card">
+        <div class="request-cta-icon">🎯</div>
+        <div class="request-cta-content">
+            <h3 class="request-cta-title">Não encontrou o jogo que procura?</h3>
+            <p class="request-cta-desc">
+                Solicite o acompanhamento — buscamos na Steam ao vivo, e se o jogo existir
+                lá, você confirma e ele entra no nosso catálogo na hora, com o preço atual.
+            </p>
+            <form action="{{ url_for('search') }}" method="GET" class="request-cta-form">
+                <input type="text" name="q" class="search-input"
+                       placeholder="Ex: Hollow Knight Silksong, Among Us, Lethal Company..."
+                       required>
+                <button type="submit" class="btn btn-primary">Solicitar acompanhamento</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

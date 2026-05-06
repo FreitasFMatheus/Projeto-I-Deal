@@ -1,0 +1,223 @@
+{# ==========================================================================
+   alerts.html — Lista e formulário de alertas de preço (US03 — Sprint 2)
+   ==========================================================================
+   Mantém a mesma identidade visual do site (glass + roxo/verde + Outfit).
+   ========================================================================== #}
+
+{% extends 'base.html' %}
+
+{% block title %}I-Deal - Meus Alertas{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <h1 class="header-title">Meus Alertas</h1>
+    <p class="header-subtitle">
+        Cadastre um preço-alvo e receba um email quando o jogo abaixar pra esse valor (ou menos).
+    </p>
+
+    {# --- Formulário de novo alerta --- #}
+    <div class="alert-form-card" {% if prefill_game %}id="alertForm"{% endif %}>
+        <h2 style="margin: 0 0 1.5rem; font-size: 1.3rem; font-weight: 600;">
+            {% if prefill_game %}+ Novo alerta para {{ prefill_game.title }}{% else %}+ Novo alerta{% endif %}
+        </h2>
+        <form action="{{ url_for('alerts_create') }}" method="POST" class="alert-form">
+            <div class="form-group">
+                <label for="game_input">Jogo</label>
+                <input type="text"
+                       name="game_name"
+                       id="game_input"
+                       list="games_datalist"
+                       class="form-control"
+                       placeholder="Digite o nome do jogo (autocompleta enquanto digita)..."
+                       autocomplete="off"
+                       value="{{ prefill_game.title if prefill_game else '' }}"
+                       required>
+                <datalist id="games_datalist">
+                    {% for g in games %}
+                    <option value="{{ g.title }}"></option>
+                    {% endfor %}
+                </datalist>
+                <p class="form-hint">
+                    Comece a digitar e o autocomplete sugere os {{ games|length }} jogos do catálogo.
+                    Se o jogo não está no catálogo, <a href="{{ url_for('search') }}">solicite o acompanhamento</a>.
+                </p>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label for="target_price">Preço-alvo (R$)</label>
+                    <input type="number" step="0.01" min="0.01" name="target_price"
+                           id="target_price" class="form-control" placeholder="Ex: 149.90" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="store_filter">Loja (opcional)</label>
+                    <select name="store_filter" id="store_filter" class="form-control">
+                        <option value="">Qualquer loja</option>
+                        <option value="Steam">Steam</option>
+                        <option value="Epic Games">Epic Games</option>
+                        <option value="GOG">GOG</option>
+                        <option value="Nuuvem">Nuuvem</option>
+                        <option value="Humble Store">Humble Store</option>
+                        <option value="Fanatical">Fanatical</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="min_discount_pct">Desconto mínimo (%)</label>
+                    <input type="number" step="1" min="1" max="99" name="min_discount_pct"
+                           id="min_discount_pct" class="form-control" placeholder="Ex: 30 (deixe vazio = qualquer)">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
+                Criar alerta
+            </button>
+        </form>
+    </div>
+
+    {# --- Lista de alertas --- #}
+    <h2 style="margin: 3rem 0 1.5rem; font-weight: 600;">
+        Alertas cadastrados
+        {% if alerts %}<span style="color: #888; font-weight: 400; font-size: 1rem;">({{ alerts|length }})</span>{% endif %}
+    </h2>
+
+    {% if alerts %}
+    <div class="alerts-list">
+        {% for entry in alerts %}
+        {% set a = entry.alert %}
+        <div class="alert-card {% if entry.hit_target and a.active %}alert-card-hit{% endif %} {% if not a.active %}alert-card-disabled{% endif %}">
+
+            <div class="alert-card-main">
+                <div class="alert-card-game">
+                    <h3 class="alert-game-title">{{ a.game.title }}</h3>
+                    <div class="alert-meta">
+                        <span class="alert-target">
+                            Alvo: <strong>R$ {{ "%.2f"|format(a.target_price)|replace('.', ',') }}</strong>
+                        </span>
+                        {% if a.store_filter %}
+                        <span class="alert-pill">{{ a.store_filter }}</span>
+                        {% else %}
+                        <span class="alert-pill alert-pill-muted">Qualquer loja</span>
+                        {% endif %}
+                        {% if a.min_discount_pct %}
+                        <span class="alert-pill alert-pill-discount">≥ {{ "%.0f"|format(a.min_discount_pct) }}% off</span>
+                        {% endif %}
+                        {% if not a.active %}
+                        <span class="alert-pill alert-pill-muted">Desativado</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="alert-card-status">
+                    {% if entry.current_price is not none %}
+                        <div class="alert-current-label">Preço atual</div>
+                        <div class="alert-current-price {% if entry.hit_target %}alert-price-hit{% endif %}">
+                            R$ {{ "%.2f"|format(entry.current_price)|replace('.', ',') }}
+                        </div>
+                        <div class="alert-current-store">
+                            {{ entry.current_store }}
+                            {% if entry.hit_target %}<span class="alert-hit-badge">🎯 atingiu o alvo</span>{% endif %}
+                        </div>
+                    {% else %}
+                        <div class="alert-current-label">Sem preços ainda</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if a.last_triggered_at %}
+            <div class="alert-last-trigger">
+                Último disparo: {{ a.last_triggered_at.strftime('%d/%m/%Y %H:%M') }}
+                em {{ a.last_triggered_store }} por R$ {{ "%.2f"|format(a.last_triggered_price)|replace('.', ',') }}
+            </div>
+            {% endif %}
+
+            <div class="alert-card-actions">
+                <form action="{{ url_for('alerts_toggle', alert_id=a.id) }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-outline btn-sm">
+                        {% if a.active %}Desativar{% else %}Reativar{% endif %}
+                    </button>
+                </form>
+                <form action="{{ url_for('alerts_delete', alert_id=a.id) }}" method="POST"
+                      style="display: inline;"
+                      onsubmit="return confirm('Remover este alerta?');">
+                    <button type="submit" class="btn btn-outline btn-sm btn-danger-outline">
+                        Remover
+                    </button>
+                </form>
+                <a href="{{ url_for('game_detail', game_id=a.game_id) }}" class="btn btn-outline btn-sm">
+                    Ver jogo
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alerts-empty">
+        <p>Você ainda não cadastrou nenhum alerta.</p>
+        <p style="font-size: 0.9rem; color: #888; margin-top: 0.5rem;">
+            Use o formulário acima para criar o primeiro.
+        </p>
+    </div>
+    {% endif %}
+
+    {# --- Botão de teste de SMTP (debug) --- #}
+    <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--glass-border);">
+        <h3 style="font-size: 1rem; font-weight: 600; color: #ccc; margin-bottom: 0.8rem;">
+            Testar envio de email
+        </h3>
+        <p style="font-size: 0.9rem; color: #888; margin-bottom: 1rem;">
+            Envia um email de exemplo para <strong>{{ user.email }}</strong> usando a configuração SMTP atual.
+        </p>
+        <form action="{{ url_for('alerts_test_email') }}" method="POST" style="display: inline;">
+            <button type="submit" class="btn btn-outline">
+                Enviar email de teste
+            </button>
+        </form>
+    </div>
+
+    {# --- Painel QA (visível APENAS para a conta QA) --- #}
+    {% if is_qa %}
+    <div class="qa-panel">
+        <div class="qa-panel-header">
+            <span class="qa-pill">QA</span>
+            <h3 class="qa-panel-title">Painel de testes</h3>
+        </div>
+        <p class="qa-panel-desc">
+            Você está logado como conta QA (<code>{{ QA_EMAIL }}</code>).
+            Use os botões abaixo para disparar emails de cenário para
+            <strong>todos os usuários cadastrados</strong> (exceto a própria conta QA).
+        </p>
+
+        <div class="qa-panel-actions">
+            <form action="{{ url_for('qa_test_one_scenario') }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-primary">
+                    Enviar 1 cenário rotacionado por usuário
+                </button>
+            </form>
+            <form action="{{ url_for('qa_test_all_scenarios') }}" method="POST"
+                  style="display: inline;"
+                  onsubmit="return confirm('Vai enviar 5 emails para CADA usuário (exceto QA). Confirma?');">
+                <button type="submit" class="btn btn-outline">
+                    Enviar TODOS os 5 cenários por usuário
+                </button>
+            </form>
+        </div>
+
+        <div class="qa-scenarios-preview">
+            <div class="qa-scenarios-title">Cenários disponíveis</div>
+            <ul class="qa-scenarios-list">
+                <li><span class="qa-store-pill" style="background: rgba(99,102,241,0.15); border-color:#6366f1; color:#a5a8f5;">Steam</span> Elden Ring · R$ 149,90 (alvo R$ 199,90)</li>
+                <li><span class="qa-store-pill" style="background: rgba(16,185,129,0.15); border-color:#10b981; color:#5be4be;">Epic Games</span> Cyberpunk 2077 · R$ 59,97 (alvo R$ 199,90)</li>
+                <li><span class="qa-store-pill" style="background: rgba(245,158,11,0.15); border-color:#f59e0b; color:#fbc16d;">GOG</span> Baldur's Gate 3 · R$ 99,99 (alvo R$ 199,99)</li>
+                <li><span class="qa-store-pill" style="background: rgba(6,182,212,0.15); border-color:#06b6d4; color:#5ce3f1;">Nuuvem</span> Hollow Knight · R$ 15,00 (alvo R$ 46,99)</li>
+                <li><span class="qa-store-pill" style="background: rgba(236,72,153,0.15); border-color:#ec4899; color:#f590bd;">Humble Store</span> Red Dead Redemption 2 · R$ 74,75 (alvo R$ 149,50)</li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <a href="{{ url_for('index') }}" class="btn btn-outline" style="margin-top: 2rem; display: inline-block;">
+        ← Voltar ao Catálogo
+    </a>
+</div>
+{% endblock %}

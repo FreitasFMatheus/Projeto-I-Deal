@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}I-Deal{% endblock %}</title>
+    <!-- CSS and Fonts -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Modern Font: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="navbar">
+        <a href="{{ url_for('index') }}" class="logo">I-Deal</a>
+        <div class="nav-links">
+            {% if user %}
+                <a href="{{ url_for('alerts_list') }}">Meus Alertas</a>
+                {% if is_qa %}
+                <a href="{{ url_for('qa_panel') }}" style="color: #f59e0b;">QA Panel</a>
+                {% endif %}
+                <span style="font-weight: 400; color: #ccc; margin-left: 1.5rem;">Bem-vindo(a), <strong style="color: white">{{ user.name }}</strong></span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline" style="margin-left: 1.5rem;">Sair</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Entrar</a>
+                <a href="{{ url_for('register') }}" class="btn btn-primary" style="margin-left: 1.5rem;">Cadastrar</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    {% block content %}{% endblock %}
+
+    <script>
+        // Auto-close alerts after 4 seconds for better UX
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                alert.style.transition = 'opacity 0.5s ease';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 4000);
+    </script>
+</body>
+</html>

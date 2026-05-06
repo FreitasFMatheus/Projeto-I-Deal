@@ -1,0 +1,172 @@
+{# ==========================================================================
+   qa_panel.html — Painel de operações QA (visível só pra conta QA)
+   ========================================================================== #}
+
+{% extends 'base.html' %}
+
+{% block title %}I-Deal - QA Panel{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <div class="qa-panel-header" style="margin-bottom: 1.5rem;">
+        <span class="qa-pill">QA</span>
+        <h1 class="header-title" style="margin: 0; font-size: 2.2rem;">Painel de operações</h1>
+    </div>
+    <p class="header-subtitle">
+        Disparar atualizações, processar alertas e fazer resets sob demanda.
+        Toda operação destrutiva faz <strong>backup automático</strong> do <code>ideal.db</code> antes.
+    </p>
+
+    {# --- Stats do banco --- #}
+    <div class="qa-stats-grid">
+        <div class="qa-stat-card">
+            <div class="qa-stat-label">Usuários</div>
+            <div class="qa-stat-value">{{ stats.users }}</div>
+        </div>
+        <div class="qa-stat-card">
+            <div class="qa-stat-label">Jogos</div>
+            <div class="qa-stat-value">{{ stats.games }}</div>
+        </div>
+        <div class="qa-stat-card">
+            <div class="qa-stat-label">Preços registrados</div>
+            <div class="qa-stat-value">{{ stats.prices }}</div>
+        </div>
+        <div class="qa-stat-card">
+            <div class="qa-stat-label">Alertas</div>
+            <div class="qa-stat-value">{{ stats.alerts }} <span style="font-size: 0.7rem; color:#888;">({{ stats.alerts_active }} ativos)</span></div>
+        </div>
+        <div class="qa-stat-card">
+            <div class="qa-stat-label">Logs de navegação</div>
+            <div class="qa-stat-value">{{ stats.nav_logs }}</div>
+        </div>
+        <div class="qa-stat-card">
+            <div class="qa-stat-label">Store Links</div>
+            <div class="qa-stat-value">{{ stats.store_links }}</div>
+        </div>
+    </div>
+
+    {# --- Status integrações --- #}
+    <div class="qa-integrations">
+        <div class="qa-int-row">
+            <span class="qa-int-name">ITAD API</span>
+            {% if stats.itad_configured %}
+            <span class="qa-int-status qa-int-ok">✓ configurada ({{ stats.itad_key_preview }})</span>
+            {% else %}
+            <span class="qa-int-status qa-int-warn">⚠ não configurada</span>
+            {% endif %}
+        </div>
+        <div class="qa-int-row">
+            <span class="qa-int-name">SMTP (email)</span>
+            {% if stats.smtp_configured %}
+            <span class="qa-int-status qa-int-ok">✓ configurado ({{ stats.smtp_user }})</span>
+            {% else %}
+            <span class="qa-int-status qa-int-warn">⚠ não configurado</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {# --- SEÇÃO 1: Atualizações --- #}
+    <h2 style="margin: 3rem 0 0.5rem; font-weight: 600;">⚡ Atualizações</h2>
+    <p style="color:#888; font-size:0.9rem; margin-bottom:1.5rem;">Operações seguras — não apagam nada.</p>
+
+    <div class="qa-actions-grid">
+        <div class="qa-action-card">
+            <h3 class="qa-action-title">🔄 Forçar refresh de preços</h3>
+            <p class="qa-action-desc">
+                Roda <code>update_all_prices()</code> agora — busca Steam direto + ITAD (todas as lojas).
+                Pode demorar 30-60s em catálogos grandes. Síncrono.
+            </p>
+            <form action="{{ url_for('qa_refresh_prices') }}" method="POST">
+                <button type="submit" class="btn btn-primary">Atualizar agora</button>
+            </form>
+        </div>
+
+        <div class="qa-action-card">
+            <h3 class="qa-action-title">📨 Processar alertas agora</h3>
+            <p class="qa-action-desc">
+                Checa todos os alertas ativos vs preços atuais. Se algum bater, dispara email
+                (respeitando cooldown de 24h).
+            </p>
+            <form action="{{ url_for('qa_process_alerts') }}" method="POST">
+                <button type="submit" class="btn btn-primary">Processar agora</button>
+            </form>
+        </div>
+
+        <div class="qa-action-card">
+            <h3 class="qa-action-title">🔌 Testar ITAD API</h3>
+            <p class="qa-action-desc">
+                Faz uma chamada de teste pra ITAD pra confirmar que a chave funciona.
+                Resultado aparece no flash em cima.
+            </p>
+            <form action="{{ url_for('qa_test_itad') }}" method="POST">
+                <button type="submit" class="btn btn-outline">Testar conexão</button>
+            </form>
+        </div>
+    </div>
+
+    {# --- SEÇÃO 2: Resets --- #}
+    <h2 style="margin: 3rem 0 0.5rem; font-weight: 600;">🧹 Resets</h2>
+    <p style="color:#888; font-size:0.9rem; margin-bottom:1.5rem;">
+        ⚠️ Operações destrutivas — fazem <strong>backup automático</strong> do <code>ideal.db</code> antes
+        (formato: <code>ideal.db.backup-clear-X-YYYYMMDD-HHMMSS</code>).
+    </p>
+
+    <div class="qa-actions-grid">
+        <div class="qa-action-card qa-action-soft">
+            <h3 class="qa-action-title">⏱️ Reset de cooldowns</h3>
+            <p class="qa-action-desc">
+                Limpa <code>last_triggered_at</code> de todos os alertas — permite re-disparo imediato.
+                <strong>Não destrutivo</strong> (só zera timestamps).
+            </p>
+            <form action="{{ url_for('qa_reset_cooldowns') }}" method="POST">
+                <button type="submit" class="btn btn-outline">Resetar cooldowns</button>
+            </form>
+        </div>
+
+        <div class="qa-action-card qa-action-danger">
+            <h3 class="qa-action-title">💰 Apagar TODOS os preços</h3>
+            <p class="qa-action-desc">
+                Deleta toda a tabela <code>prices</code> ({{ stats.prices }} registros).
+                O scheduler vai reconstruir na próxima execução (15 min).
+            </p>
+            <form action="{{ url_for('qa_clear_prices') }}" method="POST"
+                  onsubmit="return confirm('CERTEZA? Vai apagar {{ stats.prices }} preços. Backup automático será feito.');">
+                <button type="submit" class="btn btn-outline btn-danger-outline">Apagar preços</button>
+            </form>
+        </div>
+
+        <div class="qa-action-card qa-action-danger">
+            <h3 class="qa-action-title">🔔 Apagar TODOS os alertas</h3>
+            <p class="qa-action-desc">
+                Deleta toda a tabela <code>alerts</code> ({{ stats.alerts }} registros).
+                Os usuários vão precisar recriar.
+            </p>
+            <form action="{{ url_for('qa_clear_alerts') }}" method="POST"
+                  onsubmit="return confirm('CERTEZA? Vai apagar {{ stats.alerts }} alertas. Backup automático será feito.');">
+                <button type="submit" class="btn btn-outline btn-danger-outline">Apagar alertas</button>
+            </form>
+        </div>
+
+        <div class="qa-action-card qa-action-danger">
+            <h3 class="qa-action-title">🧭 Apagar logs de navegação</h3>
+            <p class="qa-action-desc">
+                Deleta toda a tabela <code>navigation_logs</code> ({{ stats.nav_logs }} registros).
+            </p>
+            <form action="{{ url_for('qa_clear_nav_logs') }}" method="POST"
+                  onsubmit="return confirm('CERTEZA? Vai apagar {{ stats.nav_logs }} logs. Backup automático será feito.');">
+                <button type="submit" class="btn btn-outline btn-danger-outline">Apagar logs</button>
+            </form>
+        </div>
+    </div>
+
+    {# --- Atalhos --- #}
+    <div style="margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--glass-border);">
+        <h3 style="font-size: 1rem; font-weight:600; color:#ccc; margin-bottom:0.8rem;">Atalhos</h3>
+        <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+            <a href="{{ url_for('alerts_list') }}" class="btn btn-outline">→ Painel de testes de email (em /alerts)</a>
+            <a href="{{ url_for('index') }}" class="btn btn-outline">→ Catálogo</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

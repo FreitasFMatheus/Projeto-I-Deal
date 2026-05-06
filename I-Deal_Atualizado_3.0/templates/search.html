@@ -1,0 +1,116 @@
+{# ==========================================================================
+   search.html — Resultados da busca / solicitação de acompanhamento
+   ========================================================================== #}
+
+{% extends 'base.html' %}
+
+{% block title %}I-Deal - Busca: {{ query }}{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <h1 class="header-title">Solicitar acompanhamento</h1>
+    <p class="header-subtitle">
+        Buscamos primeiro no catálogo do I-Deal e, se não encontrar, consultamos a Steam ao vivo.
+    </p>
+
+    {# --- Barra de busca --- #}
+    <form action="{{ url_for('search') }}" method="GET" class="search-bar">
+        <input type="text" name="q" value="{{ query }}"
+               placeholder="Digite o nome do jogo..." class="search-input"
+               autofocus>
+        <button type="submit" class="btn btn-primary search-submit">Buscar</button>
+    </form>
+
+    {% if query %}
+
+    {# --- Resultados locais (catálogo) --- #}
+    {% if local_results %}
+    <h2 style="margin: 3rem 0 1.5rem; font-weight: 600;">
+        Já no nosso catálogo
+        <span style="color: #888; font-weight: 400; font-size: 1rem;">({{ local_results|length }})</span>
+    </h2>
+    <p style="color: #888; font-size: 0.9rem; margin-bottom: 1.5rem;">
+        Estes jogos já têm preços rastreados. Clique para ver detalhes.
+    </p>
+    <div class="games-grid">
+        {% for game in local_results %}
+        <a href="{{ url_for('game_detail', game_id=game.id) }}" class="game-card-link">
+            <div class="game-card">
+                <img src="{{ game.image_url }}" alt="{{ game.title }}" class="game-img">
+                <div class="game-info">
+                    <h3 class="game-title">{{ game.title }}</h3>
+                    <p class="game-stores">No catálogo</p>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# --- Resultados ao vivo (Steam) --- #}
+    {% if live_results %}
+    <h2 style="margin: 3rem 0 1.5rem; font-weight: 600;">
+        Encontrado ao vivo na Steam
+        <span style="color: #888; font-weight: 400; font-size: 1rem;">({{ live_results|length }})</span>
+    </h2>
+    <p style="color: #888; font-size: 0.9rem; margin-bottom: 1.5rem;">
+        Estes jogos não estão no nosso catálogo ainda.
+        Clique em <strong>"Confirmar acompanhamento"</strong> para começar a rastrear o preço.
+    </p>
+
+    <div class="live-results-grid">
+        {% for item in live_results %}
+        <div class="live-result-card">
+            {% if item.image %}
+            <img src="{{ item.image }}" alt="{{ item.name }}" class="live-result-img">
+            {% endif %}
+            <div class="live-result-info">
+                <h3 class="live-result-title">{{ item.name }}</h3>
+                {% if item.price %}
+                <span class="live-result-price">R$ {{ "%.2f"|format(item.price)|replace('.', ',') }}</span>
+                {% endif %}
+                <span class="live-result-source">via Steam Store</span>
+            </div>
+            <form action="{{ url_for('search_add_to_catalog') }}" method="POST">
+                <input type="hidden" name="steam_id" value="{{ item.steam_id }}">
+                <input type="hidden" name="name" value="{{ item.name }}">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    ✓ Confirmar acompanhamento
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# --- Nada encontrado em lugar nenhum --- #}
+    {% if not local_results and not live_results %}
+    <div class="alerts-empty" style="margin-top: 2rem;">
+        <p style="font-size: 1.1rem;">
+            Nenhum jogo encontrado para <strong style="color: #fff;">"{{ query }}"</strong>.
+        </p>
+        <p style="font-size: 0.9rem; color: #888; margin-top: 0.6rem;">
+            Não encontramos correspondência nem no catálogo do I-Deal, nem na Steam ao vivo.
+            Tente outro termo, verifique a grafia, ou tente buscar pelo nome em inglês.
+        </p>
+        <p style="font-size: 0.85rem; color: #888; margin-top: 1.2rem; line-height: 1.5;">
+            <strong style="color: #ccc;">Dicas:</strong><br>
+            • Use o nome oficial do jogo (sem acentos ou caracteres especiais)<br>
+            • Tente o nome em inglês — a Steam responde melhor<br>
+            • Se for um jogo recém-lançado, pode levar alguns dias para aparecer
+        </p>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="alerts-empty" style="margin-top: 2rem;">
+        <p>Digite um termo de busca acima para começar.</p>
+    </div>
+    {% endif %}
+
+    <a href="{{ url_for('index') }}" class="btn btn-outline" style="margin-top: 2rem; display: inline-block;">
+        ← Voltar ao Catálogo
+    </a>
+</div>
+{% endblock %}

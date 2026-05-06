@@ -1,0 +1,14 @@
+# =============================================================================
+# requirements.txt — Dependências Python do projeto I-Deal
+# =============================================================================
+# Para instalar: pip install -r requirements.txt
+# (Se estiver usando venv no Arch/CachyOS: source venv/bin/activate.fish primeiro)
+# =============================================================================
+
+Flask>=3.0.0              # Framework web principal
+Flask-SQLAlchemy>=3.1.1   # ORM — mapeia classes Python para tabelas SQL
+Werkzeug>=3.0.0           # Utilitários HTTP + hashing de senhas
+pymongo>=4.6.0            # Driver Python para MongoDB (tarefa 3.2)
+requests>=2.31.0          # HTTP para buscar preços nas APIs externas
+APScheduler>=3.10.0       # Agendamento das atualizações automáticas de preço
+python-dotenv>=1.0.0      # Carrega variáveis de ambiente do arquivo .env
